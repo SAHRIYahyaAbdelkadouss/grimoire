@@ -6,11 +6,19 @@ if (!msgFile) {
   console.error('✖  Commit message file path is missing. Expected it as process.argv[2].')
   process.exit(1)
 }
-const msg = readFileSync(msgFile, 'utf8').trim()
+let msg
+try {
+  msg = readFileSync(msgFile, 'utf8').trim()
+} catch (err) {
+  console.error(
+    `✖  Failed to read commit message file "${msgFile}": ${err instanceof Error ? err.message : String(err)}`,
+  )
+  process.exit(1)
+}
 
-// Ignore merge commits and fixup commits
+// Ignore merge commits and fixup commits — exit code 2 signals "skip remaining hooks"
 if (msg.startsWith('Merge ') || msg.startsWith('fixup!') || msg.startsWith('squash!')) {
-  process.exit(0)
+  process.exit(2)
 }
 
 // Expected format: <gitmoji> <type> : <description>

@@ -1,12 +1,9 @@
 #!/usr/bin/env sh
 node scripts/validate-commit.mjs "$1"
+status=$?
 
-# Skip tests for merge, fixup, and squash commits
-commit_msg=$(cat "$1")
-case "$commit_msg" in
-  Merge\ *|fixup\!*|squash\!* )
-    exit 0
-    ;;
-esac
+# exit 2 = skip (merge/fixup/squash), exit 1 = invalid message
+if [ $status -eq 2 ]; then exit 0; fi
+if [ $status -ne 0 ]; then exit $status; fi
 
 npm test
