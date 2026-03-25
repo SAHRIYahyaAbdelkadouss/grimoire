@@ -3,7 +3,7 @@ import { execSync } from 'node:child_process'
 
 const branch = execSync('git rev-parse --abbrev-ref HEAD').toString().trim()
 
-const allowed = /^(main|develop|chore|feature\/.+|fix\/.+|release\/.+|chore\/.+|docs\/.+)$/
+const allowed = /^(?:main|develop|(?:feature|fix|release|chore|docs)\/.+)$/
 
 if (!allowed.test(branch)) {
   console.error(`

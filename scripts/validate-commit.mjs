@@ -12,7 +12,7 @@ if (msg.startsWith('Merge ') || msg.startsWith('fixup!') || msg.startsWith('squa
 // Expected format: <gitmoji> <type> : <description>
 // e.g. ✨ feature : add new feature
 //      🐛 fix : resolve memory leak in store
-const pattern = /^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F) \w+ : .+/u
+const pattern = /^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F) +\w+ : .+/u
 
 if (!pattern.test(msg)) {
   console.error(`
