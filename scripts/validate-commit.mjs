@@ -2,6 +2,10 @@ import { readFileSync } from 'node:fs'
 import process from 'node:process'
 
 const msgFile = process.argv[2]
+if (!msgFile) {
+  console.error('✖  Commit message file path is missing. Expected it as process.argv[2].')
+  process.exit(1)
+}
 const msg = readFileSync(msgFile, 'utf8').trim()
 
 // Ignore merge commits and fixup commits
