@@ -1,5 +1,13 @@
 #!/usr/bin/env sh
 
+# Capture push refs from stdin to detect tag pushes
+PUSHING_TAG=""
+while IFS=' ' read -r _local_ref _local_sha remote_ref _remote_sha; do
+  case "$remote_ref" in
+    refs/tags/v*) PUSHING_TAG="yes" ;;
+  esac
+done
+
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  pre-push — running full CI pipeline locally"
@@ -35,3 +43,12 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "  ✔ all checks passed — push is clear"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
+
+# If pushing a version tag, schedule back-merge PR after push completes
+if [ "$PUSHING_TAG" = "yes" ]; then
+  echo "  ℹ  Tag push detected — back-merge PR will open shortly"
+  ( sleep 5 && gh pr create --base develop --head main \
+      --title "chore : back-merge after $(git describe --tags --abbrev=0)" \
+      --body "Automated back-merge. See **Files changed** tab." \
+      2>/dev/null || echo "  ⚠  Back-merge PR skipped (already exists or branches in sync)" ) &
+fi
