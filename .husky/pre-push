@@ -1,2 +1,37 @@
 #!/usr/bin/env sh
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  pre-push — running full CI pipeline locally"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+echo ""
+echo "[ 1/5 ] Validating branch name..."
 node scripts/validate-branch.mjs
+echo "        ✔ branch name is valid"
+
+echo ""
+echo "[ 2/5 ] Running ESLint..."
+npm run lint
+echo "        ✔ lint passed"
+
+echo ""
+echo "[ 3/5 ] Checking code formatting (Prettier)..."
+npm run format:check
+echo "        ✔ formatting is clean"
+
+echo ""
+echo "[ 4/5 ] Building project (tsup)..."
+npm run build
+echo "        ✔ build succeeded"
+
+echo ""
+echo "[ 5/5 ] Running tests + coverage..."
+npm test
+echo "        ✔ all tests passed — coverage thresholds met"
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  ✔ all checks passed — push is clear"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""

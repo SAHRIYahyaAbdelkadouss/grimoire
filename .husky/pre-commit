@@ -1,2 +1,7 @@
 #!/usr/bin/env sh
+
+# 1. Fix staged files (ESLint + Prettier auto-fix on changed files only)
 npx lint-staged
+
+# 2. format check 
+npm run format:check
