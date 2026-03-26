@@ -1,0 +1,78 @@
+name: Back-merge main into develop
+
+# Runs automatically after the Publish workflow succeeds.
+# Opens a PR from main into develop so the version bump commit never stays
+# stranded on main. Requires the default GITHUB_TOKEN (no extra secrets needed).
+
+on:
+  workflow_run:
+    workflows: ['Publish to npm']
+    types: [completed]
+
+jobs:
+  open-pr:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Collect diff data
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BEHIND=$(git rev-list --count origin/develop..origin/main)
+          if [ "$BEHIND" -eq 0 ]; then
+            echo "develop is already up to date with main -- nothing to do."
+            echo "SKIP_PR=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          EXISTING=$(gh pr list \
+            --base develop \
+            --head main \
+            --state open \
+            --json number \
+            --jq 'length')
+          if [ "$EXISTING" -gt 0 ]; then
+            echo "A back-merge PR is already open -- skipping."
+            echo "SKIP_PR=true" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          TAG=$(git describe --tags origin/main --abbrev=0 2>/dev/null || echo "latest")
+          COMMIT_COUNT=$(git rev-list --count origin/develop..origin/main)
+          COMMITS=$(git log origin/develop..origin/main --oneline --no-decorate)
+          DIFFSTAT=$(git diff --stat origin/develop...origin/main | tail -1)
+          NEW_FILES=$(git diff --name-status origin/develop...origin/main | awk '$1=="A"{print "- `"$2"`"}')
+          MODIFIED=$(git diff --name-status origin/develop...origin/main | awk '$1=="M"{print "- `"$2"`"}')
+          DELETED=$(git diff --name-status origin/develop...origin/main | awk '$1=="D"{print "- `"$2"`"}')
+
+          BODY_FILE=$(mktemp)
+          printf "Automated back-merge after the **%s** release.\n\n" "$TAG" >> "$BODY_FILE"
+          printf "Merging main back into develop keeps the version bump from being stranded on main.\n\n" >> "$BODY_FILE"
+          printf -- "---\n\n" >> "$BODY_FILE"
+          printf "## Summary\n\n\`\`\`\n%s\n\`\`\`\n\n" "$DIFFSTAT" >> "$BODY_FILE"
+          printf "## Commits (%s new)\n\n\`\`\`\n%s\n\`\`\`\n\n" "$COMMIT_COUNT" "$COMMITS" >> "$BODY_FILE"
+          [ -n "$NEW_FILES" ] && printf "## New files\n\n%s\n\n" "$NEW_FILES" >> "$BODY_FILE"
+          [ -n "$MODIFIED" ] && printf "## Modified files\n\n%s\n\n" "$MODIFIED" >> "$BODY_FILE"
+          [ -n "$DELETED" ] && printf "## Deleted files\n\n%s\n\n" "$DELETED" >> "$BODY_FILE"
+          printf -- "---\n\n> Triggered automatically by the *Publish to npm* workflow.\n" >> "$BODY_FILE"
+
+          echo "RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
+          echo "PR_BODY_FILE=$BODY_FILE" >> "$GITHUB_ENV"
+
+      - name: Open back-merge PR
+        if: env.SKIP_PR != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --base develop \
+            --head main \
+            --title "chore : back-merge main into develop after $RELEASE_TAG" \
+            --body-file "$PR_BODY_FILE"
