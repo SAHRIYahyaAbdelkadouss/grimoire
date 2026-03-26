@@ -16,7 +16,8 @@ try {
   process.exit(1)
 }
 
-// Ignore merge commits and fixup commits — exit code 2 signals "skip remaining hooks"
+// Ignore merge/fixup/squash commits — use exit code 2 as a custom "skip remaining hooks" sentinel,
+// which is interpreted by the .husky/commit-msg wrapper (mapping 2 → 0) rather than by Git itself.
 if (msg.startsWith('Merge ') || msg.startsWith('fixup!') || msg.startsWith('squash!')) {
   process.exit(2)
 }
