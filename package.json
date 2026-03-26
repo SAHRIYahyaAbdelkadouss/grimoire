@@ -1,6 +1,6 @@
 {
   "name": "grimoire-store",
-  "version": "1.1.0",
+  "version": "1.2.1",
   "description": "Simple state store with zero dependencies — skips notifying listeners when you set a value that's already the same.",
   "keywords": [
     "state",
