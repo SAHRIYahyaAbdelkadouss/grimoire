@@ -1,0 +1,54 @@
+name: Back-merge main → develop
+
+# Runs automatically after the Publish workflow succeeds.
+# Opens a PR from main → develop so the version bump commit never stays
+# stranded on main. Requires the default GITHUB_TOKEN (no extra secrets needed).
+
+on:
+  workflow_run:
+    workflows: ['Publish to npm']
+    types: [completed]
+
+jobs:
+  open-pr:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Open back-merge PR (main → develop)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Only open a PR if main has commits develop doesn't have yet
+          BEHIND=$(git rev-list --count origin/develop..origin/main)
+          if [ "$BEHIND" -eq 0 ]; then
+            echo "develop is already up to date with main — nothing to do."
+            exit 0
+          fi
+
+          # Check if a back-merge PR is already open
+          EXISTING=$(gh pr list \
+            --base develop \
+            --head main \
+            --state open \
+            --json number \
+            --jq 'length')
+
+          if [ "$EXISTING" -gt 0 ]; then
+            echo "A back-merge PR is already open — skipping."
+            exit 0
+          fi
+
+          TAG=$(git describe --tags origin/main --abbrev=0 2>/dev/null || echo "latest")
+
+          gh pr create \
+            --base develop \
+            --head main \
+            --title "🔀 chore : back-merge main → develop after ${TAG}" \
+            --body "$(printf 'Automated back-merge after the **%s** release.\n\nMerging \`main\` back into \`develop\` ensures the version bump commit is not stranded on \`main\`.\n\n> Triggered by the *Publish to npm* workflow.' "$TAG")"
