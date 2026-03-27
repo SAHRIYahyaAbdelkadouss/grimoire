@@ -1,5 +1,15 @@
 #!/usr/bin/env sh
 
+# Capture push refs from stdin first (git passes them via stdin to pre-push)
+PUSHING_TAG=""
+PUSH_INPUT=$(cat)
+echo "$PUSH_INPUT" | while IFS=' ' read -r _local_ref _local_sha remote_ref _remote_sha; do
+  case "$remote_ref" in
+    refs/tags/v*) touch /tmp/.grimoire-tag-push ;;
+  esac
+done
+[ -f /tmp/.grimoire-tag-push ] && PUSHING_TAG="yes" && rm -f /tmp/.grimoire-tag-push
+
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  pre-push — running full CI pipeline locally"
@@ -35,3 +45,17 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "  ✔ all checks passed — push is clear"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
+
+# If pushing a version tag, back-merge main → develop after push completes
+if [ "$PUSHING_TAG" = "yes" ]; then
+  CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+  echo "  ℹ  Tag push detected — will back-merge main → develop after push"
+  ( sleep 3 \
+    && git switch develop \
+    && git pull origin develop \
+    && git merge main --no-edit \
+    && git push origin develop \
+    && git switch "$CURRENT_BRANCH" \
+    && echo "  ✔  Back-merge to develop complete" \
+    || echo "  ⚠  Back-merge failed — merge main into develop manually" ) &
+fi
