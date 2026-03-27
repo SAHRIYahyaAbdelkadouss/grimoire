@@ -83,8 +83,25 @@ All new code must be tested.
 ## Releasing (maintainers only)
 
 ```sh
-npm version patch   # or minor / major
-git push origin main --follow-tags
+# 1. Branch from develop
+git switch develop && git pull
+git checkout -b release/x.y.z
+
+# 2. Bump version (only change on the release branch)
+npm version x.y.z --no-git-tag-version
+git add package.json package-lock.json
+git commit -m "🔖 release : x.y.z"
+
+# 3. Push & open PR → main
+git push -u origin release/x.y.z
+
+# 4. After PR is merged: tag & push
+git switch main && git pull
+git tag vx.y.z
+git push origin vx.y.z
 ```
 
-The `publish.yml` workflow triggers on any `'v[0-9]+.[0-9]+.[0-9]+-rc.*'` tag and publishes to npm with SLSA provenance.
+The `publish.yml` workflow triggers on any `v*` tag and publishes to npm with SLSA provenance.
+The `pre-push` hook auto cherry-picks the version bump to `develop`.
+
+See [GIT_FLOW.md](GIT_FLOW.md) for the full strategy.
