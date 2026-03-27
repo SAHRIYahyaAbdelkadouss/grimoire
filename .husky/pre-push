@@ -44,11 +44,20 @@ echo "  ✔ all checks passed — push is clear"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-# If pushing a version tag, schedule back-merge PR after push completes
+# If pushing a version tag, cherry-pick the version bump to develop
 if [ "$PUSHING_TAG" = "yes" ]; then
-  echo "  ℹ  Tag push detected — back-merge PR will open shortly"
-  ( sleep 5 && gh pr create --base develop --head main \
-      --title "chore : back-merge after $(git describe --tags --abbrev=0)" \
-      --body "Automated back-merge. See **Files changed** tab." \
-      2>/dev/null || echo "  ⚠  Back-merge PR skipped (already exists or branches in sync)" ) &
+  CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+  VERSION_COMMIT=$(git rev-parse HEAD)
+  echo "  ℹ  Tag push detected — cherry-picking version bump to develop"
+  ( sleep 3 \
+    && git switch develop \
+    && git pull origin develop \
+    && git cherry-pick "$VERSION_COMMIT" --no-verify \
+    && git push origin develop --no-verify \
+    && git switch "$CURRENT_BRANCH" \
+    && echo "  ✔  Cherry-pick to develop complete" \
+    || { echo "  ⚠  Cherry-pick failed — run manually:"; \
+         echo "      git switch develop && git cherry-pick $VERSION_COMMIT"; \
+         git cherry-pick --abort 2>/dev/null; \
+         git switch "$CURRENT_BRANCH" 2>/dev/null; } ) &
 fi
